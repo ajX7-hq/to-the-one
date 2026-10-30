@@ -105,6 +105,9 @@
         .clear-confirmation p { margin: 0; font-size: 13px; }
         .visitor-name-field { display: grid; justify-items: center; gap: 7px; margin: 0 auto 16px; }
         .visitor-name-field input { min-height: 44px; text-align: center; }
+        .visitor-consent { display: flex; align-items: flex-start; gap: 10px; max-width: 500px; margin: 0 auto 18px; color: var(--muted); font-size: 12px; text-align: left; }
+        .visitor-consent input { flex: 0 0 auto; width: 18px; height: 18px; margin: 2px 0 0; accent-color: var(--rose); }
+        .history-no-photo { display: grid; width: 104px; height: 104px; place-items: center; padding: 8px; border-radius: 12px; background: rgba(255,255,255,0.06); color: var(--muted); font-size: 10px; text-align: center; }
         .card { position: relative; z-index: 1; width: min(100%, 540px); margin: max(28px, 8vh) auto 0; padding: clamp(30px, 6vw, 48px); overflow: hidden; border: 1px solid rgba(255,225,233,0.23); border-radius: 28px; background: radial-gradient(ellipse at 50% 0%, rgba(237,154,169,0.12), transparent 48%), linear-gradient(145deg, rgba(48,31,40,0.98), rgba(25,18,24,0.98)); box-shadow: 0 30px 90px rgba(0,0,0,0.4), 0 0 54px rgba(237,154,169,0.08), inset 0 1px rgba(255,255,255,0.08); animation: welcome-arrive 850ms cubic-bezier(0.2,0.8,0.2,1) both; text-align: center; isolation: isolate; }
         .card::before { position: absolute; z-index: -1; top: -112px; right: -82px; width: 310px; height: 310px; border: 1px solid rgba(255,193,202,0.17); border-radius: 50%; background: radial-gradient(circle at 38% 38%, rgba(255,193,202,0.2), rgba(237,154,169,0.08) 36%, transparent 71%); box-shadow: 0 0 0 24px rgba(255,193,202,0.025), 0 0 0 52px rgba(233,203,141,0.02); content: ''; animation: lock-aurora 18s ease-in-out infinite alternate; will-change: transform; }
         .card::after { position: absolute; z-index: -1; inset: 12px; border: 1px solid rgba(255,255,255,0.035); border-radius: 19px; content: ''; pointer-events: none; }
@@ -461,7 +464,7 @@
             .settings-header h2 { width: 100%; }
             .settings-back { align-self: flex-start; }
             .history-record { grid-template-columns: 76px minmax(0, 1fr); gap: 12px; padding: 9px; }
-            .history-photo-button { width: 76px; height: 76px; }
+            .history-photo-button, .history-no-photo { width: 76px; height: 76px; }
             .history-record h3 { font-size: 18px; }
             .history-record p { font-size: 11px; }
             .lock-settings-wrap { top: 12px; right: 12px; }
@@ -582,11 +585,13 @@
     <section id="settingsScreen" class="settings-screen" aria-labelledby="settingsTitle" hidden>
         <div class="settings-panel">
             <div id="settingsPasswordPanel">
-                <h2 id="settingsTitle" class="visually-hidden">Settings password</h2>
+                <h2 id="settingsTitle" class="visually-hidden">Administrator sign in</h2>
                 <form class="settings-form" onsubmit="return unlockSettings(event)">
-                    <label class="visually-hidden" for="settingsPassword">Password</label>
-                    <input id="settingsPassword" type="password" autocomplete="current-password" placeholder="Password" aria-label="Password" required>
-                    <button type="submit">Continue</button>
+                    <label class="visually-hidden" for="settingsEmail">Administrator email</label>
+                    <input id="settingsEmail" type="email" autocomplete="username" placeholder="Administrator email" aria-label="Administrator email" required>
+                    <label class="visually-hidden" for="settingsPassword">Administrator password</label>
+                    <input id="settingsPassword" type="password" autocomplete="current-password" placeholder="Administrator password" aria-label="Administrator password" required>
+                    <button id="settingsLoginButton" type="submit">Sign in to history</button>
                 </form>
                 <p id="settingsPasswordError" class="settings-error" role="alert" aria-live="polite"></p>
                 <button class="settings-back" type="button" onclick="closeSettings()">Back to the home page</button>
@@ -595,13 +600,14 @@
                 <div class="settings-header">
                     <button class="settings-back" type="button" onclick="closeSettings()">Back</button>
                     <h2>Visit history</h2>
+                    <button class="settings-back" type="button" onclick="signOutOfHistory()">Sign out</button>
                 </div>
-                <p>Only visits that reached the main page are listed. Names are provided by visitors; otherwise they appear as Guest.</p>
+                <p>Visits that reached the main page are shared across devices. The history includes visitor-provided names, date, time, duration, and consented photos.</p>
                 <p class="settings-status" id="historyStatus" role="status" aria-live="polite"></p>
                 <div id="historyList" class="history-list"></div>
                 <button class="clear-history-button" type="button" onclick="showClearConfirmation()">Clear history</button>
                 <div id="clearConfirmation" class="clear-confirmation" hidden>
-                    <p>This permanently removes every saved visit and photo from this browser. Type <strong>CLEAR</strong> to confirm.</p>
+                    <p>This permanently removes every saved visit and photo from all devices. Type <strong>CLEAR</strong> to confirm.</p>
                     <label class="visually-hidden" for="clearConfirmationInput">Type CLEAR to confirm</label>
                     <input id="clearConfirmationInput" type="text" autocomplete="off" placeholder="Type CLEAR">
                     <div class="smile-actions">
@@ -633,6 +639,10 @@
                     <label for="visitorName">TYPE YOUR NAME TO CONTINUE</label>
                     <input id="visitorName" type="text" maxlength="60" autocomplete="name" placeholder="Your name" required>
                 </div>
+                <label class="visitor-consent" for="visitorHistoryConsent">
+                    <input id="visitorHistoryConsent" type="checkbox" required>
+                    <span>Tick me</span>
+                </label>
                 <video id="cameraPreview" class="camera-preview" autoplay playsinline muted hidden></video>
                 <div class="smile-actions">
                     <button id="cameraStart" class="smile-action" type="button" onclick="startCamera()">Open the camera</button>
@@ -874,7 +884,11 @@
         let historyPhotoUrls = [];
         let historyStorageError = "";
         const historyDatabaseName = "anikhaVisitHistory";
+        const supabaseUrl = "https://hbdhzfhkmxmnomroknqn.supabase.co";
+        const supabasePublishableKey = "sb_publishable_thduLMPAYuOFhKRARt8Igw__h0k6AU-";
+        let supabaseSession = null;
         let currentVisitId = null;
+        let currentCloudVisit = null;
         let currentVisitStartedAt = 0;
         let mainPageReachedAt = 0;
         let visitDurationTimer = 0;
@@ -926,8 +940,7 @@
             });
         }
 
-        async function saveVisitHistory(name, photoData) {
-            const photo = await createHistoryPhoto(photoData);
+        async function saveVisitHistory(name, photo) {
             const database = await openHistoryDatabase();
             return new Promise((resolve, reject) => {
                 const transaction = database.transaction("visits", "readwrite");
@@ -950,6 +963,97 @@
                     reject(transaction.error || new Error("Could not save the visit."));
                 };
             });
+        }
+
+        async function supabaseRequest(path, { method = "GET", body, token = supabasePublishableKey, headers = {} } = {}) {
+            const response = await fetch(`${supabaseUrl}${path}`, {
+                method,
+                headers: {
+                    apikey: supabasePublishableKey,
+                    Authorization: `Bearer ${token}`,
+                    ...headers
+                },
+                ...(body === undefined ? {} : {
+                    body: body instanceof Blob ? body : JSON.stringify(body)
+                })
+            });
+            if (!response.ok) {
+                const detail = await response.text();
+                throw new Error(`Supabase request failed (${response.status}): ${detail.slice(0, 300)}`);
+            }
+            if (response.status === 204) return null;
+            const contentType = response.headers.get("content-type") || "";
+            return contentType.includes("application/json") ? response.json() : response.blob();
+        }
+
+        async function getAdminAccessToken() {
+            if (!supabaseSession) throw new Error("Please sign in to view visit history.");
+            if (supabaseSession.expiresAt > Date.now() + 60000) return supabaseSession.accessToken;
+            const refreshed = await supabaseRequest("/auth/v1/token?grant_type=refresh_token", {
+                method: "POST",
+                body: { refresh_token: supabaseSession.refreshToken }
+            });
+            supabaseSession = {
+                accessToken: refreshed.access_token,
+                refreshToken: refreshed.refresh_token,
+                expiresAt: Date.now() + refreshed.expires_in * 1000
+            };
+            return supabaseSession.accessToken;
+        }
+
+        async function saveCloudVisitHistory(name, photo) {
+            if (!crypto.randomUUID) throw new Error("Secure random IDs are unavailable. Open the website over HTTPS and try again.");
+            const id = crypto.randomUUID();
+            const visitToken = crypto.randomUUID();
+            await supabaseRequest("/rest/v1/website_visits", {
+                method: "POST",
+                headers: { "Content-Type": "application/json", Prefer: "return=minimal" },
+                body: { id, name, visit_token: visitToken }
+            });
+            const visit = { id, visitToken, photoPath: null };
+            try {
+                if (photo.size > 1900000) {
+                    throw new Error("The prepared photo is too large to upload.");
+                }
+                await supabaseRequest(`/storage/v1/object/visit-photos/${id}.jpg`, {
+                    method: "POST",
+                    headers: { "Content-Type": "image/jpeg", "x-upsert": "false" },
+                    body: photo
+                });
+                await supabaseRequest("/rest/v1/rpc/attach_visit_photo", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: { p_visit_id: id, p_visit_token: visitToken }
+                });
+                visit.photoPath = `${id}.jpg`;
+            } catch (error) {
+                visit.photoError = error;
+            }
+            return visit;
+        }
+
+        async function linkLocalVisitToCloud(localId, cloudId) {
+            const database = await openHistoryDatabase();
+            try {
+                await new Promise((resolve, reject) => {
+                    const transaction = database.transaction("visits", "readwrite");
+                    const store = transaction.objectStore("visits");
+                    const request = store.get(localId);
+                    request.onsuccess = () => {
+                        if (!request.result) {
+                            reject(new Error("The local visit record could not be linked to its shared record."));
+                            return;
+                        }
+                        request.result.cloudId = cloudId;
+                        store.put(request.result);
+                    };
+                    transaction.oncomplete = resolve;
+                    transaction.onerror = () => reject(transaction.error || new Error("Could not link the local visit record."));
+                    transaction.onabort = () => reject(transaction.error || new Error("Could not link the local visit record."));
+                });
+            } finally {
+                database.close();
+            }
         }
 
         function readVisitHistory() {
@@ -1002,40 +1106,71 @@
         }
 
         async function persistVisitDuration() {
-            if (currentVisitId === null || !currentVisitStartedAt || visitDurationWritePending) return;
+            if ((currentVisitId === null && !currentCloudVisit) || !currentVisitStartedAt || visitDurationWritePending) return;
             visitDurationWritePending = true;
-            let database;
+            const durationMs = Date.now() - currentVisitStartedAt;
             try {
-                database = await openHistoryDatabase();
-                await new Promise((resolve, reject) => {
-                    const transaction = database.transaction("visits", "readwrite");
-                    const store = transaction.objectStore("visits");
-                    const request = store.get(currentVisitId);
-                    request.onsuccess = () => {
-                        if (!request.result) return;
-                        request.result.durationMs = Date.now() - currentVisitStartedAt;
-                        store.put(request.result);
-                    };
-                    transaction.oncomplete = resolve;
-                    transaction.onerror = () => reject(transaction.error || new Error("Could not save visit duration."));
-                    transaction.onabort = () => reject(transaction.error || new Error("Could not save visit duration."));
-                });
+                if (currentVisitId !== null) {
+                    let database;
+                    try {
+                        database = await openHistoryDatabase();
+                        await new Promise((resolve, reject) => {
+                            const transaction = database.transaction("visits", "readwrite");
+                            const store = transaction.objectStore("visits");
+                            const request = store.get(currentVisitId);
+                            request.onsuccess = () => {
+                                if (!request.result) return;
+                                request.result.durationMs = durationMs;
+                                store.put(request.result);
+                            };
+                            transaction.oncomplete = resolve;
+                            transaction.onerror = () => reject(transaction.error || new Error("Could not save local visit duration."));
+                            transaction.onabort = () => reject(transaction.error || new Error("Could not save local visit duration."));
+                        });
+                    } finally {
+                        if (database) database.close();
+                    }
+                }
             } catch (error) {
-                console.error("Could not save visit duration.", error);
-                const status = document.getElementById("historyStatus");
-                status.textContent = "Visit duration could not be saved.";
-            } finally {
-                if (database) database.close();
-                visitDurationWritePending = false;
+                console.error("Could not save local visit duration.", error);
+                document.getElementById("historyStatus").textContent = "Visit duration could not be saved on this device.";
             }
+            if (currentCloudVisit) {
+                try {
+                    await supabaseRequest("/rest/v1/rpc/update_visit_duration", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: {
+                            p_visit_id: currentCloudVisit.id,
+                            p_visit_token: currentCloudVisit.visitToken,
+                            p_duration_ms: durationMs
+                        }
+                    });
+                } catch (error) {
+                    console.error("Could not save shared visit duration.", error);
+                    document.getElementById("historyStatus").textContent = "Visit details were shared, but the visit duration could not be updated.";
+                }
+            }
+            visitDurationWritePending = false;
         }
 
-        function startVisitDurationTracking(visitId) {
-            currentVisitId = visitId;
+        function startVisitDurationTracking() {
             currentVisitStartedAt = mainPageReachedAt;
             if (visitDurationTimer) window.clearInterval(visitDurationTimer);
             visitDurationTimer = window.setInterval(persistVisitDuration, 5000);
             persistVisitDuration();
+        }
+
+        async function readCloudVisitHistory(token) {
+            const visits = [];
+            for (let offset = 0; ; offset += 1000) {
+                const page = await supabaseRequest(
+                    `/rest/v1/website_visits?select=id,name,visited_at,duration_ms,photo_path&order=visited_at.desc&limit=1000&offset=${offset}`,
+                    { token }
+                );
+                visits.push(...page);
+                if (page.length < 1000) return visits;
+            }
         }
 
         async function renderVisitHistory() {
@@ -1045,70 +1180,161 @@
             list.replaceChildren();
             status.textContent = historyStorageError;
             try {
-                const visits = await readVisitHistory();
-                visits.sort((first, second) => second.visitedAt - first.visitedAt);
+                const token = await getAdminAccessToken();
+                const cloudVisits = await readCloudVisitHistory(token);
+                let localVisits = [];
+                const statusMessages = historyStorageError ? [historyStorageError] : [];
+                try {
+                    localVisits = await readVisitHistory();
+                } catch (error) {
+                    console.error("Could not load device-only visit history.", error);
+                    statusMessages.push("Device-only visit history could not be loaded.");
+                }
+                const cloudIds = new Set(cloudVisits.map(visit => visit.id));
+                const visits = [
+                    ...cloudVisits.map(visit => ({
+                        id: `cloud-${visit.id}`,
+                        cloud: true,
+                        name: visit.name,
+                        visitedAt: new Date(visit.visited_at).getTime(),
+                        durationMs: visit.duration_ms,
+                        photoPath: visit.photo_path
+                    })),
+                    ...localVisits
+                        .filter(visit => !visit.cloudId || !cloudIds.has(visit.cloudId))
+                        .map(visit => ({ ...visit, id: `local-${visit.id}`, localOnly: true }))
+                ].sort((first, second) => second.visitedAt - first.visitedAt);
+                status.textContent = statusMessages.join(" ");
                 if (visits.length === 0) {
                     const empty = document.createElement("p");
                     empty.className = "history-empty";
-                    empty.textContent = "No visits have reached the main page yet.";
+                    empty.textContent = "No shared visits have reached the main page yet.";
                     list.append(empty);
                     return;
                 }
                 const dateFormat = new Intl.DateTimeFormat(undefined, { year: "numeric", month: "long", day: "numeric" });
                 const timeFormat = new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit" });
-                visits.forEach(visit => {
+                let photoLoadFailures = 0;
+                for (const visit of visits) {
                     const record = document.createElement("article");
                     record.className = "history-record";
-                    const photoButton = document.createElement("button");
-                    photoButton.className = "history-photo-button";
-                    photoButton.type = "button";
-                    photoButton.setAttribute("aria-label", `View larger photo provided by ${visit.name || "Guest"}`);
-                    const photo = document.createElement("img");
-                    photo.alt = `Photo provided by ${visit.name || "Guest"}`;
-                    photo.src = URL.createObjectURL(visit.photo);
-                    historyPhotoUrls.push(photo.src);
-                    photoButton.append(photo);
-                    photoButton.addEventListener("click", () => openHistoryPhoto(photo.src, photo.alt));
                     const details = document.createElement("div");
                     const name = document.createElement("h3");
                     name.textContent = visit.name || "Guest";
                     const date = document.createElement("p");
-                    date.textContent = `Date: ${dateFormat.format(new Date(visit.visitedAt))}`;
+                    const visitedAt = new Date(visit.visitedAt);
+                    date.textContent = `Date: ${dateFormat.format(visitedAt)}`;
                     const time = document.createElement("p");
-                    time.textContent = `Time: ${timeFormat.format(new Date(visit.visitedAt))}`;
+                    time.textContent = `Time: ${timeFormat.format(visitedAt)}`;
                     const duration = document.createElement("p");
                     duration.textContent = `Time spent: ${visit.durationMs == null ? "Not recorded" : formatVisitDuration(visit.durationMs)}`;
-                    duration.dataset.visitId = String(visit.id);
+                    let photoBlob = visit.photo || null;
+                    if (visit.cloud && visit.photoPath) {
+                        try {
+                            photoBlob = await supabaseRequest(
+                                `/storage/v1/object/visit-photos/${encodeURIComponent(visit.photoPath)}`,
+                                { token }
+                            );
+                        } catch (error) {
+                            console.error("Could not load a shared visit photo.", error);
+                            photoLoadFailures += 1;
+                        }
+                    }
+                    let photoElement;
+                    if (photoBlob instanceof Blob) {
+                        const photoUrl = URL.createObjectURL(photoBlob);
+                        historyPhotoUrls.push(photoUrl);
+                        const photoButton = document.createElement("button");
+                        photoButton.className = "history-photo-button";
+                        photoButton.type = "button";
+                        photoButton.setAttribute("aria-label", `View larger photo provided by ${visit.name || "Guest"}`);
+                        const photo = document.createElement("img");
+                        photo.alt = `Photo provided by ${visit.name || "Guest"}`;
+                        photo.src = photoUrl;
+                        photoButton.append(photo);
+                        photoButton.addEventListener("click", () => openHistoryPhoto(photoUrl, photo.alt));
+                        photoElement = photoButton;
+                    } else {
+                        photoElement = document.createElement("div");
+                        photoElement.className = "history-no-photo";
+                        photoElement.textContent = "Photo unavailable";
+                    }
                     details.append(name, date, time, duration);
-                    record.append(photoButton, details);
+                    if (visit.localOnly) {
+                        const localNote = document.createElement("p");
+                        localNote.textContent = "Saved on this device only";
+                        details.append(localNote);
+                    }
+                    record.append(photoElement, details);
                     list.append(record);
-                });
+                }
+                if (photoLoadFailures) {
+                    statusMessages.push(`${photoLoadFailures} shared photo${photoLoadFailures === 1 ? "" : "s"} could not be loaded.`);
+                }
+                status.textContent = statusMessages.join(" ");
             } catch (error) {
                 console.error("Could not load visit history.", error);
-                status.textContent = "Visit history could not be loaded. Check that browser storage is enabled.";
+                status.textContent = "Shared visit history could not be loaded. Check the Supabase setup and administrator access.";
             }
         }
 
         function openSettings() {
             document.getElementById("settingsScreen").hidden = false;
-            document.getElementById("settingsPasswordPanel").hidden = false;
-            document.getElementById("settingsHistoryPanel").hidden = true;
+            document.getElementById("settingsPasswordPanel").hidden = Boolean(supabaseSession);
+            document.getElementById("settingsHistoryPanel").hidden = !supabaseSession;
+            if (supabaseSession) {
+                renderVisitHistory();
+                return;
+            }
+            document.getElementById("settingsEmail").value = "";
             document.getElementById("settingsPassword").value = "";
             document.getElementById("settingsPasswordError").textContent = "";
-            document.getElementById("settingsPassword").focus();
+            document.getElementById("settingsEmail").focus();
         }
 
-        function unlockSettings(event) {
+        async function unlockSettings(event) {
             event.preventDefault();
-            const password = document.getElementById("settingsPassword").value.trim().toLowerCase();
-            if (password !== "dairymilk") {
-                document.getElementById("settingsPasswordError").textContent = "That password didn't open settings. Please try again.";
-                return false;
+            const button = document.getElementById("settingsLoginButton");
+            const error = document.getElementById("settingsPasswordError");
+            button.disabled = true;
+            error.textContent = "";
+            try {
+                const response = await supabaseRequest("/auth/v1/token?grant_type=password", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: {
+                        email: document.getElementById("settingsEmail").value.trim(),
+                        password: document.getElementById("settingsPassword").value
+                    }
+                });
+                supabaseSession = {
+                    accessToken: response.access_token,
+                    refreshToken: response.refresh_token,
+                    expiresAt: Date.now() + response.expires_in * 1000
+                };
+                document.getElementById("settingsPasswordPanel").hidden = true;
+                document.getElementById("settingsHistoryPanel").hidden = false;
+                await renderVisitHistory();
+            } catch (requestError) {
+                console.error("Could not sign in to visit history.", requestError);
+                error.textContent = "Sign-in failed or this account is not authorized for visit history.";
+            } finally {
+                button.disabled = false;
             }
-            document.getElementById("settingsPasswordPanel").hidden = true;
-            document.getElementById("settingsHistoryPanel").hidden = false;
-            renderVisitHistory();
             return false;
+        }
+
+        function signOutOfHistory() {
+            supabaseSession = null;
+            closeHistoryPhoto();
+            revokeHistoryPhotoUrls();
+            document.getElementById("historyList").replaceChildren();
+            document.getElementById("historyStatus").textContent = "";
+            document.getElementById("settingsHistoryPanel").hidden = true;
+            document.getElementById("settingsPasswordPanel").hidden = false;
+            document.getElementById("settingsEmail").value = "";
+            document.getElementById("settingsPassword").value = "";
+            document.getElementById("settingsScreen").hidden = true;
         }
 
         function closeSettings() {
@@ -1160,13 +1386,29 @@
             const clearButton = document.querySelector("#clearConfirmation button");
             clearButton.disabled = true;
             try {
+                const token = await getAdminAccessToken();
+                const visits = await readCloudVisitHistory(token);
+                const photoPaths = visits.map(visit => visit.photo_path).filter(Boolean);
+                for (let offset = 0; offset < photoPaths.length; offset += 100) {
+                    await supabaseRequest("/storage/v1/object/visit-photos", {
+                        method: "DELETE",
+                        token,
+                        headers: { "Content-Type": "application/json" },
+                        body: { prefixes: photoPaths.slice(offset, offset + 100) }
+                    });
+                }
+                await supabaseRequest("/rest/v1/website_visits?id=not.is.null", {
+                    method: "DELETE",
+                    token,
+                    headers: { Prefer: "return=minimal" }
+                });
                 await clearStoredVisitHistory();
                 historyStorageError = "";
                 cancelClearConfirmation();
                 await renderVisitHistory();
             } catch (error) {
                 console.error("Could not clear visit history.", error);
-                document.getElementById("clearError").textContent = "History could not be cleared. Check that browser storage is enabled and try again.";
+                document.getElementById("clearError").textContent = "History could not be completely cleared. Check the Supabase setup and administrator access, then try again.";
             } finally {
                 clearButton.disabled = false;
             }
@@ -1180,13 +1422,20 @@
 
         function validateVisitorName() {
             const nameInput = document.getElementById('visitorName');
-            if (nameInput.value.trim()) return true;
-            nameInput.setCustomValidity('Type your name to continue.');
-            nameInput.reportValidity();
-            nameInput.addEventListener('input', () => nameInput.setCustomValidity(''), { once: true });
-            document.getElementById('cameraMessage').innerText = 'Type your name to continue.';
-            nameInput.focus();
-            return false;
+            if (!nameInput.value.trim()) {
+                nameInput.setCustomValidity('Type your name to continue.');
+                nameInput.reportValidity();
+                nameInput.addEventListener('input', () => nameInput.setCustomValidity(''), { once: true });
+                document.getElementById('cameraMessage').innerText = 'Type your name to continue.';
+                nameInput.focus();
+                return false;
+            }
+            if (!document.getElementById('visitorHistoryConsent').checked) {
+                document.getElementById('cameraMessage').innerText = 'Please agree to share your name and photo to continue.';
+                document.getElementById('visitorHistoryConsent').focus();
+                return false;
+            }
+            return true;
         }
 
         function chooseVisitorPhoto() {
@@ -1229,13 +1478,40 @@
             stopCamera();
             mainPageReachedAt = 0;
             const visitorName = document.getElementById("visitorName").value.trim().slice(0, 60) || "Guest";
+            currentVisitId = null;
+            currentCloudVisit = null;
             historyStorageError = "";
-            saveVisitHistory(visitorName, capturedPhoto).then(visitId => {
-                currentVisitId = visitId;
-                if (mainPageReachedAt) startVisitDurationTracking(visitId);
+            createHistoryPhoto(capturedPhoto).then(async photo => {
+                let localVisitId = null;
+                try {
+                    localVisitId = await saveVisitHistory(visitorName, photo);
+                    currentVisitId = localVisitId;
+                } catch (error) {
+                    console.error("Could not save local visit history.", error);
+                    historyStorageError = "This visit could not be saved on this device.";
+                }
+                try {
+                    currentCloudVisit = await saveCloudVisitHistory(visitorName, photo);
+                    if (currentCloudVisit.photoError) {
+                        console.error("Could not upload the shared visit photo.", currentCloudVisit.photoError);
+                        historyStorageError = "Visit details were shared, but the photo could not be uploaded.";
+                    }
+                    if (localVisitId !== null) {
+                        try {
+                            await linkLocalVisitToCloud(localVisitId, currentCloudVisit.id);
+                        } catch (error) {
+                            console.error("Could not link local and shared visit history.", error);
+                        }
+                    }
+                } catch (error) {
+                    console.error("Could not save shared visit history.", error);
+                    historyStorageError = "This visit could not be shared. Check the Supabase setup and try again.";
+                }
+                document.getElementById("historyStatus").textContent = historyStorageError;
+                if (mainPageReachedAt) startVisitDurationTracking();
             }).catch(error => {
-                console.error("Could not save visit history.", error);
-                historyStorageError = "This visit could not be saved to browser history. Check that browser storage is enabled.";
+                console.error("Could not prepare visit history.", error);
+                historyStorageError = "This visit could not be saved. The photo could not be prepared for storage.";
                 document.getElementById("historyStatus").textContent = historyStorageError;
             });
             document.getElementById('smileScreen').hidden = true;
@@ -1308,7 +1584,7 @@
                 portrait.style.removeProperty('--fly-x');
                 portrait.style.removeProperty('--fly-y');
                 mainPageReachedAt = Date.now();
-                if (currentVisitId !== null) startVisitDurationTracking(currentVisitId);
+                if (currentVisitId !== null || currentCloudVisit) startVisitDurationTracking();
             };
             portrait.addEventListener('animationend', finishReveal, { once: true });
             window.setTimeout(finishReveal, prefersReducedMotion.matches ? 50 : 1200);
