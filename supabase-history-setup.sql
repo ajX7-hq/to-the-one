@@ -125,7 +125,7 @@ create policy "Visit history admins can delete visit photos"
 -- After creating the administrator in Authentication > Users, replace the
 -- email below with that account's email and run:
 -- insert into public.visit_history_admins (user_id)
--- select id from auth.users where email = 'you@example.com'
+-- select id from auth.users where email = 'ajmalfahadhkodivila@gmail.com'
 -- on conflict do nothing;
 
 notify pgrst, 'reload schema';

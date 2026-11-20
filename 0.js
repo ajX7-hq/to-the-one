@@ -7,10 +7,15 @@
         setInterval(function() {
             const now = new Date().getTime();
             const distance = targetDate - now;
+            if (distance <= 0) {
+                document.getElementById("countdown").innerHTML = "0d 0h 0m 0s left";
+                return;
+            }
             const days = Math.floor(distance / (1000 * 60 * 60 * 24));
             const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
             const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
-            document.getElementById("countdown").innerHTML = days + "d " + hours + "h " + minutes + "m left";
+            const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+            document.getElementById("countdown").innerHTML = days + "d " + hours + "h " + minutes + "m " + seconds + "s left";
         }, 1000);
 
         function checkPassword() {
